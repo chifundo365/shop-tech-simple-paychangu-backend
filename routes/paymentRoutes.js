@@ -1,28 +1,17 @@
 const express = require('express');
 const {
   initiatePayment,
-  handleCallback,
-  handleRedirectAfterPayment,
-  handleRedirectCallback, 
+  verifyPayment,
 } = require('../controllers/paymentController');
 const router = express.Router();
 
-/**
- * Payment Routes
- * 
- * POST /subscribe - Initiate a new payment
- * POST /callback - Payment gateway server-to-server callback
- * GET /callback - User redirect after payment completion
- */
 
-// Initiate payment subscription
-router.post('/subscribe', initiatePayment);
+// Initiate payment
+router.post('/make-payment', initiatePayment);
 
-// Payment gateway webhook (server-to-server)
-router.post('/callback', handleCallback);
-
-// Client redirect after payment completion
-router.get('/callback', handleRedirectCallback); 
+// Verify Payment
+router.post('/verify-payment', verifyPayment);
+ 
 
 module.exports = router;
 
