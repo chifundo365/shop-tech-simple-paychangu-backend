@@ -2,7 +2,7 @@ const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const Payment = require('../models/Payment');
-const verifyPayment = require('../utils/VerifyPayment');
+const verifyPayment = require('../utils/verifyPayment');
 const PaymentReport = require('../models/PaymentReport');
 
 const API_BASE = process.env.PAYCHANGU_API_BASE;
