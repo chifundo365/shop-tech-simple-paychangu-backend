@@ -1,0 +1,8 @@
+curl -X POST "https://celtic-encouraging-joy-promptly.trycloudflare.com/submit-payment-report" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tx_ref": "fb626820-d6e3-486c-b348-4de3d4fb883d",
+    "email": "chifundo365@gmail.com",
+    "message": "why me",
+    "status": "pending"
+  }'

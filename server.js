@@ -1,18 +1,18 @@
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
+require("dotenv").config();
 const connectDB = require("./config/db");
 const paymentRoutes = require("./routes/paymentRoutes");
+const verifyTransactionJob = require('./jobs/verifyTransactionJob');
 
-dotenv.config();
 connectDB();
+verifyTransactionJob.start();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+
 
 app.use("/api", paymentRoutes);
-
 app.get("/", (req, res) => res.send("Server running"));
 
 const PORT = process.env.PORT || 5000;
