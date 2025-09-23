@@ -1,15 +1,22 @@
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
-const crypto = require('crypto');
 const Payment = require('../models/Payment');
-const verifyPayment = require('../utils/verifyPayment');
 const PaymentReport = require('../models/PaymentReport');
-const { sendEmail } = require("../services/emailService");
-const { generatePaymentEmail } = require("../utils/emailTemplates");
+const {
+  validateWebhookSignature,
+  sendPaymentStatusEmail,
+  verifyAndUpdatePayment,
+  validatePaymentInitiation,
+  validatePaymentReport
+} = require('../utils/paymentHelpers');
+const {
+  sendSuccessResponse,
+  sendErrorResponse,
+  handleErrorResponse
+} = require('../utils/responseHelpers');
 
 const API_BASE = process.env.PAYCHANGU_API_BASE;
 const SECRET_KEY = process.env.PAYCHANGU_SECRET_KEY;
-const WEBHOOK_SECRET_KEY=process.env.PAYCHANGU_WEBHOOK_SECRET_KEY;
 const CALLBACK_URL = process.env.PAYCHANGU_CALLBACK_URL;
 const RETURN_URL = process.env.PAYCHANGU_CALLBACK_URL;
 
@@ -19,27 +26,35 @@ const RETURN_URL = process.env.PAYCHANGU_CALLBACK_URL;
  * @param {Object} res - Express response object
  */
 exports.initiatePayment = async (req, res) => {
-  const { first_name, last_name, email, phone, amount, metadata, currency } = req.body;
-  const reference = uuidv4();
-  console.log('initialise payment')
   try {
+    const { first_name, last_name, email, phone, amount, metadata, currency } = req.body;
+
+    // Validate required fields
+    const validation = validatePaymentInitiation(req.body);
+    if (!validation.isValid) {
+      return sendErrorResponse(res, validation.message, null, 400);
+    }
+
+    const reference = uuidv4();
+    console.log('Initiating payment with reference:', reference);
+
     // Make API request to payment gateway
     const response = await axios.post(
       `${API_BASE}/payment`,
       { 
-	first_name,
-	last_name,
+        first_name,
+        last_name,
         email,
         phone,
         amount,
         currency,
-	tx_ref: reference,
+        tx_ref: reference,
         callback_url: CALLBACK_URL,
-	return_url: RETURN_URL,
-	customization: {
+        return_url: RETURN_URL,
+        customization: {
           title: 'Products Purchase Payment',
           description: 'Payment for products purchased on shop-tech',
-	},	
+        },	
         metadata
       },
       {
@@ -49,7 +64,6 @@ exports.initiatePayment = async (req, res) => {
         }
       }
     );
-
 
     // Extract transaction reference from response
     const txRef = response.data.data?.data?.tx_ref;
@@ -66,12 +80,12 @@ exports.initiatePayment = async (req, res) => {
       metadata
     });
 
-    console.log(response.data);
+    console.log('Payment initiated successfully:', response.data);
+    return sendSuccessResponse(res, 'Payment initiated', response.data);
 
-    return res.status(200).json({ message: 'Payment initiated', data: response.data });
   } catch (error) {
     console.error('Payment initiation error:', error?.response?.data || error.message);
-    return res.status(500).json({ error: 'Payment request failed' });
+    return handleErrorResponse(res, error, 'Payment request failed');
   }
 };
 
@@ -81,106 +95,60 @@ exports.initiatePayment = async (req, res) => {
  * @param {Object} res - Express response object
  */
 exports.verifyPayment = async (req, res) => {
-  const { tx_ref } = req.body;
-
-  if (!tx_ref) {
-    console.log("Transaction Reference not found");
-    return res
-      .status(200)
-      .json({ success: false, message: "Transaction_id not found" });
-  }
-
-  let payment;
-
   try {
-    payment = await Payment.findOne({ tx_ref });
+    const { tx_ref } = req.body;
+
+    if (!tx_ref) {
+      console.log("Transaction Reference not found");
+      return sendErrorResponse(res, "Transaction reference not found");
+    }
+
+    const payment = await Payment.findOne({ tx_ref });
+
+    if (!payment) {
+      return sendErrorResponse(res, "Payment record not found", null, 404);
+    }
 
     // If payment already marked failed, no need to proceed
-    if (payment?.status === "failed") {
+    if (payment.status === "failed") {
       console.log("Payment failed:", payment.tx_ref);
-      return res.status(200).json({
-        success: false,
-        message: "Payment verification failed",
-        data: payment,
-      });
+      return sendErrorResponse(res, "Payment verification failed", payment);
     }
 
     // If payment already marked success, skip external verification
-    if (payment?.status === "success") {
+    if (payment.status === "success") {
       console.log("Payment already verified");
-      return res.status(200).json({
-        success: true,
-        message: "Payment verified",
-        data: payment,
-      });
+      return sendSuccessResponse(res, "Payment verified", payment);
     }
 
-    // Call verification endpoint
-    const verification = await verifyPayment(tx_ref);
+    // Verify payment and update status
+    const verificationResult = await verifyAndUpdatePayment(
+      tx_ref, 
+      payment, 
+      'verify-payment-endpoint',
+      true // Enable email sending
+    );
 
-    if (!verification?.data) {
-      return res.status(403).json({
-        success: false,
-        message: "Verification failed",
-        data: payment,
-      });
+    if (!verificationResult.success) {
+      return sendErrorResponse(
+        res,
+        verificationResult.error.message,
+        verificationResult.payment,
+        verificationResult.error.status
+      );
     }
 
-    console.log("Verification: ", verification);
-
-    const txData = verification.data;
-
-    // Update only if status has changed
-    if (txData.status !== payment.status) {
-      payment.status = txData.status;
-      payment.amount = txData.amount;
-
-      if (txData.status === "success") {
-        payment.verifiedBy = "verify-payment-endpoint";
-        payment.authorization = txData.authorization;
-        payment.verifiedAt = new Date();
-      }
-
-      await payment.save();
-    }
+    const { payment: updatedPayment, data: txData } = verificationResult;
 
     if (txData.status === "pending") {
-      return res
-        .status(200)
-        .json({ success: false, message: txData.status, data: payment });
+      return sendErrorResponse(res, txData.status, updatedPayment);
     }
 
-    return res
-      .status(200)
-      .json({ success: true, message: txData.status, data: payment });
+    return sendSuccessResponse(res, txData.status, updatedPayment);
+
   } catch (error) {
-    // Handle API errors (400, 404, etc.)
-    if (error?.response?.status) {
-      console.log("Handled error status:", error.response.status);
-
-      // Update payment with error response data if available
-      if (payment) {
-        payment.status =
-         error.response.data?.data?.status || "failed";
-        payment.amount = error.response.data?.data?.amount || payment.amount;
-        payment.verifiedBy = "verify-payment-endpoint";
-        payment.verifiedAt = new Date();
-        await payment.save();
-      }
-
-      return res.status(error.response.status).json({
-        success: false,
-        message:
-          error.response.data?.data?.message ||
-          error.response.data?.message ||
-          "Verification failed",
-        data: payment,
-      });
-    }
-
-    return res
-      .status(500)
-      .json({ success: false, message: error.message, data: payment });
+    console.error('Payment verification error:', error);
+    return handleErrorResponse(res, error, 'Payment verification failed');
   }
 };
 
@@ -191,144 +159,113 @@ exports.verifyPayment = async (req, res) => {
  */
 exports.webhook = async (req, res) => {
   console.log("Webhook Hit");
-  let updated = Payment.findOne(tx_ref);
-
+  
   try {
     const signature = req.headers["signature"];
     const payload = req.body.toString();
 
-    if (!signature) {
-      return res.status(400).send("Missing signature header");
-    }
-
-    const hash = crypto
-      .createHmac("sha256", WEBHOOK_SECRET_KEY)
-      .update(payload)
-      .digest("hex");
-
-    if (hash !== signature) {
+    // Validate webhook signature
+    if (!validateWebhookSignature(signature, payload)) {
       console.error("Invalid webhook signature");
-      return res.status(401).send("Invalid WebHook signature");
+      return sendErrorResponse(res, "Invalid WebHook signature", null, 401);
     }
 
     const webhookData = req.body;
     console.log("Successfully received webhook data:", webhookData);
 
-    // Verify transaction with paychangu verification endpoint
-    const verification = await verifyPayment(webhookData.tx_ref);
-
-    if (!verification || verification.data.status !== webhookData.status) {
-      console.error(
-        `Danger: transaction with id: ${webhookData.tx_ref} not verified, webhook may be compromised`
-      );
-      return res
-        .status(403)
-        .send("Valid signature but transaction verification failed");
+    // Find existing payment record
+    const existingPayment = await Payment.findOne({ tx_ref: webhookData.tx_ref });
+    if (!existingPayment) {
+      console.error(`Payment record not found for tx_ref: ${webhookData.tx_ref}`);
+      return sendErrorResponse(res, "Payment record not found", null, 404);
     }
 
-    // Update payment record in DB
-    updated = await Payment.findOneAndUpdate(
-      { tx_ref: webhookData.tx_ref },
-      {
-        status: webhookData.data.status,
-        amount: webhookData.data.amount,
-        authorization: webhookData.data.authorization,
-        ...(webhookData.status === "success" && {
-          verifiedBy: "webhook",
-          verifiedAt: new Date(),
-        }),
-      },
-      { new: true }
+    // Verify transaction with paychangu verification endpoint
+    const verificationResult = await verifyAndUpdatePayment(
+      webhookData.tx_ref,
+      existingPayment,
+      'webhook',
+      true // Enable email sending
     );
 
-    // Send html based email on payment success with full info.
-    await sendEmail(
-      payment.email,
-      `${updated.first_name} ${updated.last_name}`,
-      'PAYMENT STATUS  - PURCHASING PRODUCTS THROUGH SHOP TECH',
-      null,
-      generatePaymentEmail(
-        `${updated.first_name} ${updated.last_name}`,
-        webhookData.data.status,
-        webhookData.data.tx_ref,
-        webhookData.data.amount,
-        updated.metadata.shopName,
-        updated.metadata.products
-    )
-  );
-
-    return res.status(200).send("WebHook processed successfully");
-  } catch (error) {
-    if (error?.response?.status) {
-      if (updated && updated.status !== error.response.data.data.status) {
-        updated.status = error.response.data.data.status;
-        updated.amount = error.response.data.data.amount;
-        updated.verifiedBy = "webhook";
-        updated.verifiedAt = new Date();
-
-        await updated.save()
-        
-	// Send html based email on payment failed
-      await sendEmail(
-        payment.email,
-        `${payment.first_name} ${payment.last_name}`,
-        'PAYMENT STATUS  - PURCHASING PRODUCTS THROUGH SHOP TECH',
+    if (!verificationResult.success) {
+      return sendErrorResponse(
+        res,
+        verificationResult.error.message,
         null,
-        generatePaymentEmail(
-          `${updated.first_name} ${updated.last_name}`,
-          error.response.data.data.status || webhookData.data.status || 'failed',
-          updated.tx_ref,
-          updated.amount,
-          updated.metadata.shopName,
-          updated.metadata.products
-        )
+        verificationResult.error.status
       );
-      
-      }
-
-      return res.status(error.response.status).json({
-        success: false,
-        message:
-          error.response.data?.data?.message ||
-          "Verification failed",
-      });
     }
 
+    const { payment: updatedPayment, data: txData } = verificationResult;
+
+    // Extract the actual status from webhook data (might be nested in webhookData.data.status)
+    const webhookStatus = webhookData.data?.status || webhookData.status;
+    
+    console.log(`Webhook vs Verification comparison for ${webhookData.tx_ref}:`, {
+      webhookStatus: webhookStatus,
+      verificationStatus: txData.status,
+      webhookDataStructure: Object.keys(webhookData)
+    });
+
+    // Verify webhook data matches verification response
+    if (txData.status !== webhookStatus) {
+      console.error(
+        `Danger: transaction with id: ${webhookData.tx_ref} not verified, webhook may be compromised`,
+        `Webhook status: ${webhookStatus}, Verification status: ${txData.status}`
+      );
+      return sendErrorResponse(
+        res,
+        "Valid signature but transaction verification failed",
+        null,
+        403
+      );
+    }
+
+    return sendSuccessResponse(res, "WebHook processed successfully");
+
+  } catch (error) {
     console.error("Webhook error:", error);
-    return res.status(500).send("Internal Server Error");
+    return handleErrorResponse(res, error, "Internal Server Error", null);
   }
 };
 
 
 
 /**
- * Handles PaymentReports Controllor - Gets payment reports directly from customer.
+ * Handles PaymentReports Controller - Gets payment reports directly from customer.
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
 exports.paymentReport = async (req, res) => {
   try {
+    const data = req.body;
+    console.log('Payment report data:', data);
 
-  const data = req.body;
-  console.log(data);
-  if (!data || !data.tx_ref || !data.email || !data.message || !data.status ) {
-    return res.status(400).json({success: false, message: 'Missing required fileds', data: null});
-  }
+    // Validate required fields
+    const validation = validatePaymentReport(data);
+    if (!validation.isValid) {
+      return sendErrorResponse(res, validation.message, null, 400);
+    }
 
+    // Create payment report
+    const report = await PaymentReport.create({
+      tx_ref: data.tx_ref,
+      email: data.email,
+      status: data.status,
+      message: data.message,
+    });
 
-  const report = await PaymentReport.insertOne({
-    tx_ref: data.tx_ref,
-    email: data.email,
-    status: data.status,
-    message: data.description,
-  });
-
-  await report.save()
-  return res.status(200).json({succes: true, message: 'Payment report submitted succesfully', data: report})
+    return sendSuccessResponse(
+      res,
+      'Payment report submitted successfully',
+      report,
+      201
+    );
 
   } catch (error) {
-    console.error('error submmiting response', error)
-    res.status(500).json({success: false, message: 'Server Error', data: null});
+    console.error('Error submitting payment report:', error);
+    return handleErrorResponse(res, error, 'Failed to submit payment report');
   }
-}
+};
 

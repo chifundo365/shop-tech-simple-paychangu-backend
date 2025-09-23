@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const AuthorizationSchema = new mongoose.Schema({
   channel: { type: String },
@@ -10,29 +10,41 @@ const AuthorizationSchema = new mongoose.Schema({
   completed_at: { type: Date }
 });
 
-
-const paymentSchema = new mongoose.Schema({
-  first_name: String,
-  last_name: String,
-  email: String,
-  amount: Number,
-  currency: String,	
-  phone: Number,
-  status: { 
-    type: String,
-    enum: ['pending', 'success', 'failed'],
-    default: 'pending',
+const paymentSchema = new mongoose.Schema(
+  {
+    first_name: String,
+    last_name: String,
+    email: String,
+    amount: Number,
+    currency: String,
+    phone: Number,
+    status: {
+      type: String,
+      enum: ["pending", "success", "failed"],
+      default: "pending"
+    },
+    tx_ref: String,
+    retries: { type: Number, default: 0 },
+    verifiedAt: Date,
+    verifiedBy: {
+      type: String,
+      enum: ["verify-payment-endpoint", "webhook", "background-job"],
+      default: null
+    },
+    authorization: AuthorizationSchema,
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    emailSent: {
+      success: { type: Boolean, default: false },
+      failed: { type: Boolean, default: false },
+      pending: { type: Boolean, default: false }
+    },
+    emailSentAt: {
+      success: { type: Date, default: null },
+      failed: { type: Date, default: null },
+      pending: { type: Date, default: null }
+    }
   },
-  tx_ref: String,
-  retries: { type: Number, default: 0 },
-  verifiedAt: Date,   	
-  verifiedBy: {
-    type: String,
-    enum: ['verify-payment-endpoint', 'webhook', 'background-job'],
-    default: null	  
-  },
-  authorization: AuthorizationSchema,
-  metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
-}, { timestamps: true });
+  { timestamps: true }
+);
 
-module.exports = mongoose.model('Payment', paymentSchema);
+module.exports = mongoose.model("Payment", paymentSchema);
