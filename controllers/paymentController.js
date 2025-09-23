@@ -107,6 +107,7 @@ exports.verifyPayment = async (req, res) => {
     }
     
     const verification = await verifyPayment(tx_ref);
+    console.log('Here is what is happening: ', verification);
 
     if (!verification || verification.status !== 'success') {
       return res.status(403).json({ success:false,  message: 'Verification failed', data: payment });
