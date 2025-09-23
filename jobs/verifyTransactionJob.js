@@ -7,7 +7,6 @@ const { generatePaymentEmail } = require("../utils/emailTemplates");
 
 const API_BASE = process.env.PAYCHANGU_API_BASE;
 const SECRET_KEY = process.env.PAYCHANGU_SECRET_KEY;
-const MAX_RETRIES = 5;
 
 /**
  * Background job - checking and updating status of pending transaction

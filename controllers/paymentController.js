@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const Payment = require('../models/Payment');
 const verifyPayment = require('../utils/verifyPayment');
 const PaymentReport = require('../models/PaymentReport');
+const { sendEmail } = require("../services/emailService");
+const { generatePaymentEmail } = require("../utils/emailTemplates");
 
 const API_BASE = process.env.PAYCHANGU_API_BASE;
 const SECRET_KEY = process.env.PAYCHANGU_SECRET_KEY;
@@ -189,7 +191,7 @@ exports.verifyPayment = async (req, res) => {
  */
 exports.webhook = async (req, res) => {
   console.log("Webhook Hit");
-  let updated;
+  let updated = Payment.findOne(tx_ref);
 
   try {
     const signature = req.headers["signature"];
@@ -228,9 +230,9 @@ exports.webhook = async (req, res) => {
     updated = await Payment.findOneAndUpdate(
       { tx_ref: webhookData.tx_ref },
       {
-        status: webhookData.status,
-        amount: webhookData.amount,
-        authorization: webhookData.authorization,
+        status: webhookData.data.status,
+        amount: webhookData.data.amount,
+        authorization: webhookData.data.authorization,
         ...(webhookData.status === "success" && {
           verifiedBy: "webhook",
           verifiedAt: new Date(),
@@ -238,6 +240,22 @@ exports.webhook = async (req, res) => {
       },
       { new: true }
     );
+
+    // Send html based email on payment success with full info.
+    await sendEmail(
+      payment.email,
+      `${updated.first_name} ${updated.last_name}`,
+      'PAYMENT STATUS  - PURCHASING PRODUCTS THROUGH SHOP TECH',
+      null,
+      generatePaymentEmail(
+        `${updated.first_name} ${updated.last_name}`,
+        webhookData.data.status,
+        webhookData.data.tx_ref,
+        webhookData.data.amount,
+        updated.metadata.shopName,
+        updated.metadata.products
+    )
+  );
 
     return res.status(200).send("WebHook processed successfully");
   } catch (error) {
@@ -247,7 +265,25 @@ exports.webhook = async (req, res) => {
         updated.amount = error.response.data.data.amount;
         updated.verifiedBy = "webhook";
         updated.verifiedAt = new Date();
-        await updated.save();
+
+        await updated.save()
+        
+	// Send html based email on payment failed
+      await sendEmail(
+        payment.email,
+        `${payment.first_name} ${payment.last_name}`,
+        'PAYMENT STATUS  - PURCHASING PRODUCTS THROUGH SHOP TECH',
+        null,
+        generatePaymentEmail(
+          `${updated.first_name} ${updated.last_name}`,
+          error.response.data.data.status || webhookData.data.status || 'failed',
+          updated.tx_ref,
+          updated.amount,
+          updated.metadata.shopName,
+          updated.metadata.products
+        )
+      );
+      
       }
 
       return res.status(error.response.status).json({
