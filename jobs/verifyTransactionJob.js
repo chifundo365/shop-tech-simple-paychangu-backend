@@ -1,5 +1,5 @@
 const axios = require('axios');
-const cron = require ('node-cron');
+const cron = require('node-cron');
 const Payment = require('../models/Payment.js');
 const verifyPayment = require('../utils/verifyPayment');
 const { sendEmail } = require("../services/emailService");
@@ -9,11 +9,10 @@ const API_BASE = process.env.PAYCHANGU_API_BASE;
 const SECRET_KEY = process.env.PAYCHANGU_SECRET_KEY;
 const MAX_RETRIES = 5;
 
-
 /**
  * Background job - checking and updating status of pending transaction
  */
-const verifyTransactionJob = cron.schedule('*/30 * * * * *', async () => {
+const verifyTransactionJob = cron.schedule('0 * * * *', async () => {
   console.log('Background job started checking pending transactions');
 
   try {
@@ -26,65 +25,42 @@ const verifyTransactionJob = cron.schedule('*/30 * * * * *', async () => {
       try {
         const verification = await verifyPayment(payment.tx_ref);
 
-	// update payment status on verified
+        // update payment status on verified
         if (verification?.status === 'success') {
-          payment.status = verification.status;
+          payment.status = verification.data.status;
           payment.amount = verification.data.amount;
           payment.authorization = verification.data.authorization;
           payment.verifiedBy = 'background-job';
-	  payment.verifiedAt = new Date();
+          payment.verifiedAt = new Date();
 
-	  // Send email on payment success
-	  await sendEmail(
-	    payment.email,
-	    `${payment.first_name} ${payment.last_name}`,
+          // Send html based email on payment success with full info.
+          await sendEmail(
+            payment.email,
+            `${payment.first_name} ${payment.last_name}`,
             'PAYMENT STATUS  - PURCHASING PRODUCTS THROUGH SHOP TECH',
-	    null,
-	    generatePaymentEmail(
-	      `${payment.first_name} ${payment.last_name}`,
-	      payment.status,
-	      payment.tx_ref,
-	      payment.amount,
-	      payment.metadata.shopName,
-	      payment.metadata.products
-	    )
-	  );
+            null,
+            generatePaymentEmail(
+              `${payment.first_name} ${payment.last_name}`,
+              verification.data.status,
+              verification.data.tx_ref,
+              verification.data.amount,
+              payment.metadata.shopName,
+              payment.metadata.products
+            )
+          );
         }
 
       } catch (error) {
-        console.error(
-          `Verification failed for tx_ref ${payment.tx_ref}:`,
-          error?.response?.status || error.message
-        );
-      } finally {
-        payment.retries += 1;
-
-        //Mark as FAILED if max retries reached
-        if (payment.retries >= MAX_RETRIES && payment.status !== 'success') {
-          payment.status = 'failed';
+        if (error?.response?.data?.status === 'failed') {
+          console.log('Payment failed, tx_ref: ', payment.tx_ref);
+          payment.status = error.response.data.data.status;
+          payment.amount = error.response.data.data.amount;
           payment.verifiedBy = 'background-job';
-          console.log(`Payment ${payment.tx_ref} marked as FAILED after ${MAX_RETRIES} retries`);
-
-	  // Send an Email on a FAILED payment
-	   await sendEmail(
-	    payment.email,
-	    `${payment.first_name} ${payment.last_name}`,
-            'PAYMENT STATUS  - PURCHASING PRODUCTS THROUGH SHOP TECH',
-	    null,
-	    generatePaymentEmail(
-	      `${payment.first_name} ${payment.last_name}`,
-	      payment.status,
-	      payment.tx_ref,
-              payment.amount,
-	      payment.metadata.shopName,
-	      payment.metadata.products
-	    )
-	  )
-
+          payment.verifiedAt = new Date();
         }
-
-        await payment.save();
       }
+
+      await payment.save();
     }
 
   } catch (error) {
@@ -95,3 +71,4 @@ const verifyTransactionJob = cron.schedule('*/30 * * * * *', async () => {
 });
 
 module.exports = verifyTransactionJob;
+
