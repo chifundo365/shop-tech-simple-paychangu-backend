@@ -199,19 +199,20 @@ exports.webhook = async (req, res) => {
 
     const { payment: updatedPayment, data: txData } = verificationResult;
 
-    // Extract the actual status from webhook data (might be nested in webhookData.data.status)
+    // Extract the actual status from webhook data (payment status should be in webhookData.data.status)
     const webhookStatus = webhookData.data?.status || webhookData.status;
     
-    console.log(`Webhook vs Verification comparison for ${webhookData.tx_ref}:`, {
+    console.log(`🔍 Webhook vs Verification comparison for ${webhookData.tx_ref}:`, {
       webhookStatus: webhookStatus,
       verificationStatus: txData.status,
-      webhookDataStructure: Object.keys(webhookData)
+      webhookDataKeys: Object.keys(webhookData),
+      webhookDataContent: webhookData.data || webhookData
     });
 
     // Verify webhook data matches verification response
     if (txData.status !== webhookStatus) {
       console.error(
-        `Danger: transaction with id: ${webhookData.tx_ref} not verified, webhook may be compromised`,
+        `⚠️ Danger: transaction with id: ${webhookData.tx_ref} not verified, webhook may be compromised`,
         `Webhook status: ${webhookStatus}, Verification status: ${txData.status}`
       );
       return sendErrorResponse(
@@ -222,6 +223,7 @@ exports.webhook = async (req, res) => {
       );
     }
 
+    console.log(`✅ Webhook verification successful for ${webhookData.tx_ref} - Status: ${txData.status}`);
     return sendSuccessResponse(res, "WebHook processed successfully");
 
   } catch (error) {

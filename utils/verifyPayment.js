@@ -20,13 +20,19 @@ async function verifyPayment(txRef) {
       }
     });
 
-    console.log("transaction verified, tx_ref: ", txRef);
+    console.log(`✅ Transaction verification successful for tx_ref: ${txRef}`);
+    console.log(`🔍 Response structure:`, {
+      status: response.data.status,
+      message: response.data.message,
+      hasData: !!response.data.data,
+      dataKeys: response.data.data ? Object.keys(response.data.data) : null
+    });
 
     return response.data;
   } catch (error) {
     console.error(
-      `payment verification of transaction reference: ${txRef} failed`,
-      error.response
+      `❌ Payment verification failed for tx_ref: ${txRef}`,
+      error.response?.data || error.message
     );
     throw error;
   }

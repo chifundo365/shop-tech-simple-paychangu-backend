@@ -28,7 +28,7 @@ function validateWebhookSignature(signature, payload) {
 /**
  * Updates payment record in database
  * @param {string} txRef - Transaction reference
- * @param {Object} updateData - Data to update
+ * @param {Object} updateData - PayChangu response data
  * @param {string} verifiedBy - Source of verification
  * @returns {Promise<Object>} - Updated payment record
  */
@@ -36,12 +36,33 @@ async function updatePaymentRecord(txRef, updateData, verifiedBy = null) {
   const updateFields = {
     status: updateData.status,
     amount: updateData.amount,
-    authorization: updateData.authorization,
+    currency: updateData.currency,
+    authorization: {
+      channel: updateData.authorization?.channel,
+      card_number: updateData.authorization?.card_number,
+      expiry: updateData.authorization?.expiry,
+      brand: updateData.authorization?.brand,
+      provider: updateData.authorization?.provider,
+      mobile_number: updateData.authorization?.mobile_number,
+      completed_at: updateData.authorization?.completed_at ? new Date(updateData.authorization.completed_at) : null
+    }
   };
 
+  // Add verification info if payment is successful
   if (updateData.status === 'success' && verifiedBy) {
     updateFields.verifiedBy = verifiedBy;
     updateFields.verifiedAt = new Date();
+  }
+
+  // Add additional PayChangu fields if available
+  if (updateData.charges) {
+    updateFields['metadata.charges'] = updateData.charges;
+  }
+  if (updateData.reference) {
+    updateFields['metadata.reference'] = updateData.reference;
+  }
+  if (updateData.number_of_attempts) {
+    updateFields['metadata.number_of_attempts'] = updateData.number_of_attempts;
   }
 
   return await Payment.findOneAndUpdate(
@@ -76,7 +97,12 @@ async function sendPaymentStatusEmail(payment, status) {
       payment.tx_ref,
       payment.amount,
       payment.metadata?.shopName,
-      payment.metadata?.products
+      payment.metadata?.products,
+      {
+        charges: payment.metadata?.charges,
+        reference: payment.metadata?.reference,
+        authorization: payment.authorization
+      }
     );
 
     console.log(`📤 Sending payment ${status} email to ${payment.email} for transaction ${payment.tx_ref}`);
@@ -120,18 +146,25 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
   try {
     const verification = await verifyPayment(txRef);
     
-    if (!verification?.data?.data) {
+    if (!verification?.data) {
       throw new Error('Verification failed - no data returned');
     }
 
-    // The actual payment data is nested in verification.data.data
-    const txData = verification.data.data;
+    // The actual payment data is in verification.data
+    const txData = verification.data;
     const oldStatus = existingPayment.status;
 
     console.log(`🔍 Verification response for ${txRef}:`, {
-      outerStatus: verification.data.status,
-      actualPaymentStatus: txData.status,
-      message: verification.data.message
+      apiStatus: verification.status,
+      apiMessage: verification.message,
+      paymentStatus: txData.status,
+      paymentAmount: txData.amount,
+      currency: txData.currency,
+      charges: txData.charges,
+      reference: txData.reference,
+      attempts: txData.number_of_attempts,
+      authChannel: txData.authorization?.channel,
+      customerEmail: txData.customer?.email
     });
 
     // Only update if status has changed
@@ -174,8 +207,8 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
     
     // Handle verification errors
     if (error?.response?.status && existingPayment) {
-      // Access nested error data structure: error.response.data.data.data or error.response.data.data
-      const errorResponseData = error.response.data?.data?.data || error.response.data?.data || {};
+      // Access error data structure: error.response.data (payment data is directly in data)
+      const errorResponseData = error.response.data || {};
       const errorData = {
         status: errorResponseData.status || 'failed',
         amount: errorResponseData.amount || existingPayment.amount,
@@ -184,8 +217,8 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
       
       console.log(`🔍 Error data structure for ${txRef}:`, {
         httpStatus: error.response.status,
-        outerMessage: error.response.data?.message,
-        innerStatus: errorResponseData.status,
+        apiMessage: error.response.data?.message,
+        paymentStatus: errorResponseData.status,
         errorData: errorData
       });
       

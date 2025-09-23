@@ -1,4 +1,4 @@
-function generatePaymentEmail(name, status, txRef, amount, shopName, products = []) {
+function generatePaymentEmail(name, status, txRef, amount, shopName, products = [], paymentData = {}) {
   const statusColors = {
     success: "#28a745",
     failed: "#dc3545",
@@ -60,7 +60,10 @@ function generatePaymentEmail(name, status, txRef, amount, shopName, products = 
           </p>
 
           <p style="font-size: 16px; color: #333;"><strong>Amount Paid:</strong> MWK ${amount.toLocaleString()}</p>
+          ${paymentData.charges ? `<p style="font-size: 14px; color: #666;"><strong>Transaction Fees:</strong> MWK ${paymentData.charges.toLocaleString()}</p>` : ''}
           <p style="font-size: 14px; color: #555;">Transaction Reference: <strong>${txRef}</strong></p>
+          ${paymentData.reference ? `<p style="font-size: 14px; color: #555;">Payment Reference: <strong>${paymentData.reference}</strong></p>` : ''}
+          ${paymentData.authorization?.channel ? `<p style="font-size: 14px; color: #666;"><strong>Payment Method:</strong> ${paymentData.authorization.channel}</p>` : ''}
 
           <!-- Products Table -->
           ${
