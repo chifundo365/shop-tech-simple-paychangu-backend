@@ -83,7 +83,7 @@ exports.verifyPayment = async (req, res) => {
 
   if (!tx_ref) {
     console.log('Transaction Reference not found');
-    return res.status(400).json({success: false, message: 'Transaction_id not fouund'})	  
+    return res.status(200).json({success: false, message: 'Transaction_id not fouund'})	  
   }
 
   let payment;
@@ -91,8 +91,14 @@ exports.verifyPayment = async (req, res) => {
   try {
 
 
-   payment = await Payment.findOne({tx_ref});
-   console.log(payment);
+    payment = await Payment.findOne({tx_ref});
+    
+    // Check if status has been marked failed by background-job
+    if (payment?.status == 'failed') {
+      console.log('Payment failed: tx_ref:', payment.tx_ref)
+      return res.status(200).json({ success:false, message: 'Payment verification failed', data: payment});
+    }
+ 
 
     // check if the payment has been marked success by webhook or background job and skip calling  verification endpoint
     if (payment?.status === 'success') {
@@ -135,7 +141,7 @@ exports.verifyPayment = async (req, res) => {
 	data: payment,
       });
     }
-    return res.status(500).json({ success:false, message: error.message, data:null });
+    return res.status(500).json({ success:false, message: error.message, data:payment});
   }
 };
 
