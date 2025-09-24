@@ -2,7 +2,12 @@ const crypto = require('crypto');
 const Payment = require('../models/Payment');
 const verifyPayment = require('./verifyPayment');
 const { sendEmail } = require('../services/emailService');
-const { generatePaymentEmail } = require('./emailTemplates');
+const { generatePayment    } catch (error) {
+    console.log(`Payment verification failed for ${txRef}:`, error.response?.data || error.message);
+    
+    // Handle verification errorsch (error) {
+    console.log(`Payment verification failed for ${txRef}:`, error.response?.data || error.message);catch (error) {
+    console.log(`Payment verification failed for ${txRef}:`, error.response?.data || error.message);il } = require('./emailTemplates');
 
 const WEBHOOK_SECRET_KEY = process.env.PAYCHANGU_WEBHOOK_SECRET_KEY;
 
@@ -215,39 +220,21 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
       newStatus: txData.status
     };
   } catch (error) {
-    console.log(`Verification error for payment ${txRef}:`, error.response?.data || error.message);
-    
-    // Log specific details for 400 status responses
-    if (error?.response?.status === 400) {
-      console.log(`400 Status Response for ${txRef}:`, {
-        statusCode: error.response.status,
-        statusText: error.response.statusText,
-        responseHeaders: error.response.headers,
-        responseData: error.response.data,
-        requestUrl: error.config?.url,
-        requestMethod: error.config?.method,
-        requestHeaders: error.config?.headers
-      });
-    }
+    console.log(`�🚨🚨 CATCH BLOCK ENTERED for ${txRef} - HTTP ${error?.response?.status}`);
+    console.log(`�🔥 VERIFICATION ERROR for payment ${txRef}:`, error.response?.data || error.message);
+
     
     // Handle verification errors
     if (error?.response?.status && existingPayment) {
-      // Access error data structure: error.response.data.data contains the actual payment data
       const errorResponseData = error.response.data || {};
       const paymentData = errorResponseData.data || {};
+      
+      // Handle actual errors
       const errorData = {
         status: paymentData.status || errorResponseData.status || 'failed',
         amount: paymentData.amount || errorResponseData.amount || existingPayment.amount,
         tx_ref: paymentData.tx_ref || errorResponseData.tx_ref || existingPayment.tx_ref
       };
-      
-      console.log(`Error data structure for ${txRef}:`, {
-        httpStatus: error.response.status,
-        apiMessage: error.response.data?.message,
-        apiResponseStatus: errorResponseData.status,
-        actualPaymentStatus: paymentData.status,
-        errorData: errorData
-      });
       
       const updatedPayment = await updatePaymentRecord(
         txRef,

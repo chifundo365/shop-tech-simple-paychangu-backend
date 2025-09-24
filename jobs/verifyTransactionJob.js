@@ -16,8 +16,7 @@ const verifyTransactionJob = cron.schedule('0 * * * *', async () => {
 
   try {
     const pendingPayments = await Payment.find({
-      status: { $nin: ['success', 'failed'] },
-      retries: { $lt: MAX_RETRIES }
+      status: { $nin: ['success', 'failed'] }
     });
 
     for (const payment of pendingPayments) {
@@ -56,6 +55,24 @@ const verifyTransactionJob = cron.schedule('0 * * * *', async () => {
           payment.amount = error.response.data.data.amount;
           payment.verifiedBy = 'background-job';
           payment.verifiedAt = new Date();
+
+          // Send email notification for failed payment
+          await sendEmail(
+            payment.email,
+            `${payment.first_name} ${payment.last_name}`,
+            'PAYMENT STATUS - PURCHASING PRODUCTS THROUGH SHOP TECH',
+            null,
+            generatePaymentEmail(
+              `${payment.first_name} ${payment.last_name}`,
+              'failed',
+              payment.tx_ref,
+              payment.amount,
+              payment.metadata.shopName,
+              payment.metadata.products
+            )
+          );
+          
+          console.log(`Failed payment email sent to ${payment.email} for tx_ref: ${payment.tx_ref}`);
         }
       }
 

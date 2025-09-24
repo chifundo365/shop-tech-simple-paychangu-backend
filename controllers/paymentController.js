@@ -65,8 +65,9 @@ exports.initiatePayment = async (req, res) => {
       }
     );
 
-    // Extract transaction reference from response
+    // Extract transaction reference and checkout URL from response
     const txRef = response.data.data?.data?.tx_ref;
+    const checkoutUrl = response.data.data?.checkout_url;
 
     // Create payment record in database
     await Payment.create({
@@ -77,6 +78,7 @@ exports.initiatePayment = async (req, res) => {
       currency,
       phone,
       tx_ref: txRef,
+      checkout_url: checkoutUrl,
       metadata
     });
 
@@ -130,6 +132,7 @@ exports.verifyPayment = async (req, res) => {
     );
 
     if (!verificationResult.success) {
+      console.log(`Payment verification failed for ${tx_ref}`);
       return sendErrorResponse(
         res,
         verificationResult.error.message,
@@ -140,11 +143,20 @@ exports.verifyPayment = async (req, res) => {
 
     const { payment: updatedPayment, data: txData } = verificationResult;
 
-    if (txData.status === "pending") {
-      return sendErrorResponse(res, txData.status, updatedPayment);
+    // For pending payments, ensure checkout_url is included in the response if available
+    let responseData = updatedPayment;
+    if (updatedPayment.status === 'pending') {
+      responseData = {
+        ...updatedPayment.toObject()
+      };
+      // Only include checkout_url if it exists
+      if (updatedPayment.checkout_url) {
+        responseData.checkout_url = updatedPayment.checkout_url;
+      }
     }
 
-    return sendSuccessResponse(res, txData.status, updatedPayment);
+    // Return success response for all valid payment statuses
+    return sendSuccessResponse(res, txData.status, responseData);
 
   } catch (error) {
     console.error('Payment verification error:', error);

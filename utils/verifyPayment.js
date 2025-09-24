@@ -21,12 +21,6 @@ async function verifyPayment(txRef) {
     });
 
     console.log(`Transaction verification successful for tx_ref: ${txRef}`);
-    console.log(`Response structure:`, {
-      status: response.data.status,
-      message: response.data.message,
-      hasData: !!response.data.data,
-      dataKeys: response.data.data ? Object.keys(response.data.data) : null
-    });
 
     return response.data;
   } catch (error) {
@@ -34,6 +28,16 @@ async function verifyPayment(txRef) {
       `Payment verification failed for tx_ref: ${txRef}`,
       error.response?.data || error.message
     );
+    
+    // If PayChangu returns 400 but with valid payment data, treat it as a successful response
+    if (error?.response?.status === 400) {
+      const paymentData = error.response.data?.data;
+      if (paymentData && paymentData.status && paymentData.tx_ref) {
+        console.log(`PayChangu 400 response contains valid payment data for ${txRef} - treating as successful verification`);
+        return error.response.data;
+      }
+    }
+    
     throw error;
   }
 }

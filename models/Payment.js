@@ -24,6 +24,7 @@ const paymentSchema = new mongoose.Schema(
       default: "pending"
     },
     tx_ref: String,
+    checkout_url: { type: String, default: null },
     retries: { type: Number, default: 0 },
     verifiedAt: Date,
     verifiedBy: {
