@@ -171,7 +171,7 @@ exports.webhook = async (req, res) => {
     }
 
     const webhookData = JSON.parse(payload);
-    console.log("Successfully received webhook data:", webhookData);
+    console.log("Successfully received webhook data in JSON:", webhookData);
 
     // Find existing payment record
     const existingPayment = await Payment.findOne({ tx_ref: webhookData.tx_ref });
