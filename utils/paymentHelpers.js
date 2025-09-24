@@ -232,18 +232,20 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
     
     // Handle verification errors
     if (error?.response?.status && existingPayment) {
-      // Access error data structure: error.response.data (payment data is directly in data)
+      // Access error data structure: error.response.data.data contains the actual payment data
       const errorResponseData = error.response.data || {};
+      const paymentData = errorResponseData.data || {};
       const errorData = {
-        status: errorResponseData.status || 'failed',
-        amount: errorResponseData.amount || existingPayment.amount,
-        tx_ref: errorResponseData.tx_ref || existingPayment.tx_ref
+        status: paymentData.status || errorResponseData.status || 'failed',
+        amount: paymentData.amount || errorResponseData.amount || existingPayment.amount,
+        tx_ref: paymentData.tx_ref || errorResponseData.tx_ref || existingPayment.tx_ref
       };
       
       console.log(`Error data structure for ${txRef}:`, {
         httpStatus: error.response.status,
         apiMessage: error.response.data?.message,
-        paymentStatus: errorResponseData.status,
+        apiResponseStatus: errorResponseData.status,
+        actualPaymentStatus: paymentData.status,
         errorData: errorData
       });
       
