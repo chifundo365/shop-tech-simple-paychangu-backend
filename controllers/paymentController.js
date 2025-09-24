@@ -170,7 +170,7 @@ exports.webhook = async (req, res) => {
       return sendErrorResponse(res, "Invalid WebHook signature", null, 401);
     }
 
-    const webhookData = req.body;
+    const webhookData = JSON.parse(payload);
     console.log("Successfully received webhook data:", webhookData);
 
     // Find existing payment record
