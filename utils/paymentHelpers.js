@@ -54,15 +54,26 @@ async function updatePaymentRecord(txRef, updateData, verifiedBy = null) {
     updateFields.verifiedAt = new Date();
   }
 
-  // Add additional PayChangu fields if available
-  if (updateData.charges) {
-    updateFields['metadata.charges'] = updateData.charges;
+  // Add additional PayChangu fields if available (handle both verification and webhook fields)
+  if (updateData.charges || updateData.charge) {
+    updateFields['metadata.charges'] = updateData.charges || updateData.charge;
   }
   if (updateData.reference) {
     updateFields['metadata.reference'] = updateData.reference;
   }
   if (updateData.number_of_attempts) {
     updateFields['metadata.number_of_attempts'] = updateData.number_of_attempts;
+  }
+  
+  // Webhook-specific fields
+  if (updateData.amount_split) {
+    updateFields['metadata.amount_split'] = updateData.amount_split;
+  }
+  if (updateData.total_amount_paid) {
+    updateFields['metadata.total_amount_paid'] = updateData.total_amount_paid;
+  }
+  if (updateData.event_type) {
+    updateFields['metadata.event_type'] = updateData.event_type;
   }
 
   return await Payment.findOneAndUpdate(
@@ -101,7 +112,8 @@ async function sendPaymentStatusEmail(payment, status) {
       {
         charges: payment.metadata?.charges,
         reference: payment.metadata?.reference,
-        authorization: payment.authorization
+        authorization: payment.authorization,
+        amount_split: payment.metadata?.amount_split
       }
     );
 

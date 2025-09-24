@@ -61,6 +61,7 @@ function generatePaymentEmail(name, status, txRef, amount, shopName, products = 
 
           <p style="font-size: 16px; color: #333;"><strong>Amount Paid:</strong> MWK ${amount.toLocaleString()}</p>
           ${paymentData.charges ? `<p style="font-size: 14px; color: #666;"><strong>Transaction Fees:</strong> MWK ${paymentData.charges.toLocaleString()}</p>` : ''}
+          ${paymentData.amount_split?.amount_received_by_merchant ? `<p style="font-size: 14px; color: #28a745;"><strong>Amount to Merchant:</strong> MWK ${paymentData.amount_split.amount_received_by_merchant.toLocaleString()}</p>` : ''}
           <p style="font-size: 14px; color: #555;">Transaction Reference: <strong>${txRef}</strong></p>
           ${paymentData.reference ? `<p style="font-size: 14px; color: #555;">Payment Reference: <strong>${paymentData.reference}</strong></p>` : ''}
           ${paymentData.authorization?.channel ? `<p style="font-size: 14px; color: #666;"><strong>Payment Method:</strong> ${paymentData.authorization.channel}</p>` : ''}

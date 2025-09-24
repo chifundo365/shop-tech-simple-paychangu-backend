@@ -173,6 +173,17 @@ exports.webhook = async (req, res) => {
     const webhookData = JSON.parse(payload);
     console.log("Successfully received webhook data in JSON:", webhookData);
 
+    // Log key webhook fields for debugging
+    console.log(`🔍 Webhook payment details for ${webhookData.tx_ref}:`, {
+      status: webhookData.status,
+      amount: webhookData.amount,
+      charge: webhookData.charge,
+      currency: webhookData.currency,
+      reference: webhookData.reference,
+      authChannel: webhookData.authorization?.channel,
+      merchantAmount: webhookData.amount_split?.amount_received_by_merchant
+    });
+
     // Find existing payment record
     const existingPayment = await Payment.findOne({ tx_ref: webhookData.tx_ref });
     if (!existingPayment) {
@@ -199,14 +210,16 @@ exports.webhook = async (req, res) => {
 
     const { payment: updatedPayment, data: txData } = verificationResult;
 
-    // Extract the actual status from webhook data (payment status should be in webhookData.data.status)
-    const webhookStatus = webhookData.data?.status || webhookData.status;
+    // Webhook status is directly accessible (not nested)
+    const webhookStatus = webhookData.status;
     
     console.log(`🔍 Webhook vs Verification comparison for ${webhookData.tx_ref}:`, {
       webhookStatus: webhookStatus,
       verificationStatus: txData.status,
-      webhookDataKeys: Object.keys(webhookData),
-      webhookDataContent: webhookData.data || webhookData
+      webhookAmount: webhookData.amount,
+      verificationAmount: txData.amount,
+      webhookCharge: webhookData.charge,
+      verificationCharges: txData.charges
     });
 
     // Verify webhook data matches verification response
@@ -218,6 +231,20 @@ exports.webhook = async (req, res) => {
       return sendErrorResponse(
         res,
         "Valid signature but transaction verification failed",
+        null,
+        403
+      );
+    }
+
+    // Additional validation: compare amounts (webhook vs verification)
+    if (Math.abs(txData.amount - webhookData.amount) > 1) { // Allow 1 unit difference for rounding
+      console.error(
+        `⚠️ Amount mismatch for ${webhookData.tx_ref}:`,
+        `Webhook: ${webhookData.amount}, Verification: ${txData.amount}`
+      );
+      return sendErrorResponse(
+        res,
+        "Amount verification failed",
         null,
         403
       );
