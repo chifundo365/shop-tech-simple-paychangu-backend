@@ -3,12 +3,6 @@ const axios = require("axios");
 const API_BASE = process.env.PAYCHANGU_API_BASE;
 const SECRET_KEY = process.env.PAYCHANGU_SECRET_KEY;
 
-/**
- * Verify a payment by transaction reference
- * @param {string} txRef - The transaction reference (tx_ref)
- * @returns {Promise<Object>} - Returns verification data if successful
- * @throws {Error} - Throws error if verification fails or request errors
- */
 async function verifyPayment(txRef) {
   if (!txRef) throw new Error("Missing Transaction id");
 

@@ -117,17 +117,17 @@ async function sendPaymentStatusEmail(payment, status) {
       }
     );
 
-    console.log(`📤 Sending payment ${status} email to ${payment.email} for transaction ${payment.tx_ref}`);
+    console.log(`Sending payment ${status} email to ${payment.email} for transaction ${payment.tx_ref}`);
     
     await sendEmail(
       payment.email,
       fullName,
-      'PAYMENT STATUS - PURCHASING PRODUCTS THROUGH SHOP TECH',
+      'Your ShopTech Order: Payment Status Update',
       null,
       emailBody
     );
 
-    console.log(`📨 Email delivery initiated successfully for ${payment.email}`);
+    console.log(`Email delivery initiated successfully for ${payment.email}`);
 
     // Update email tracking
     await Payment.findOneAndUpdate(
@@ -215,8 +215,7 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
       newStatus: txData.status
     };
   } catch (error) {
-    console.log(`�🚨🚨 CATCH BLOCK ENTERED for ${txRef} - HTTP ${error?.response?.status}`);
-    console.log(`�🔥 VERIFICATION ERROR for payment ${txRef}:`, error.response?.data || error.message);
+    console.log(`VERIFICATION ERROR for payment ${txRef}:`, error.response?.data || error.message);
 
     
     // Handle verification errors

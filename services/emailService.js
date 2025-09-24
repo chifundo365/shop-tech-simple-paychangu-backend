@@ -5,14 +5,6 @@ const API_KEY = process.env.BREVO_API_KEY?.trim(); // Remove any whitespace/newl
 const SENDER_EMAIL = process.env.EMAIL_SENDER_EMAIL?.trim();
 const SENDER_NAME = process.env.EMAIL_SENDER_NAME?.trim();
 
-// Debug logging (remove in production)
-console.log('Email Service Configuration:');
-console.log('API_KEY length:', API_KEY?.length);
-console.log('API_KEY starts with:', API_KEY?.substring(0, 10));
-console.log('API_KEY ends with:', API_KEY?.substring(-10));
-console.log('Sender Email:', SENDER_EMAIL);
-console.log('Sender Name:', SENDER_NAME);
-
 /**
  * sendEmail - sends an email using bravo
  * @param: to - receiver email

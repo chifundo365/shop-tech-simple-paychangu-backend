@@ -60,7 +60,7 @@ const verifyTransactionJob = cron.schedule('0 * * * *', async () => {
           await sendEmail(
             payment.email,
             `${payment.first_name} ${payment.last_name}`,
-            'PAYMENT STATUS - PURCHASING PRODUCTS THROUGH SHOP TECH',
+            'Your ShopTech Order: Payment Status Update',
             null,
             generatePaymentEmail(
               `${payment.first_name} ${payment.last_name}`,
