@@ -2,12 +2,7 @@ const crypto = require('crypto');
 const Payment = require('../models/Payment');
 const verifyPayment = require('./verifyPayment');
 const { sendEmail } = require('../services/emailService');
-const { generatePayment    } catch (error) {
-    console.log(`Payment verification failed for ${txRef}:`, error.response?.data || error.message);
-    
-    // Handle verification errorsch (error) {
-    console.log(`Payment verification failed for ${txRef}:`, error.response?.data || error.message);catch (error) {
-    console.log(`Payment verification failed for ${txRef}:`, error.response?.data || error.message);il } = require('./emailTemplates');
+const { generatePaymentEmail } = require('./emailTemplates');
 
 const WEBHOOK_SECRET_KEY = process.env.PAYCHANGU_WEBHOOK_SECRET_KEY;
 
