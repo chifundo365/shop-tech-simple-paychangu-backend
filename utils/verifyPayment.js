@@ -20,8 +20,8 @@ async function verifyPayment(txRef) {
       }
     });
 
-    console.log(`✅ Transaction verification successful for tx_ref: ${txRef}`);
-    console.log(`🔍 Response structure:`, {
+    console.log(`Transaction verification successful for tx_ref: ${txRef}`);
+    console.log(`Response structure:`, {
       status: response.data.status,
       message: response.data.message,
       hasData: !!response.data.data,
@@ -31,7 +31,7 @@ async function verifyPayment(txRef) {
     return response.data;
   } catch (error) {
     console.error(
-      `❌ Payment verification failed for tx_ref: ${txRef}`,
+      `Payment verification failed for tx_ref: ${txRef}`,
       error.response?.data || error.message
     );
     throw error;

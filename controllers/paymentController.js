@@ -174,7 +174,7 @@ exports.webhook = async (req, res) => {
     console.log("Successfully received webhook data in JSON:", webhookData);
 
     // Log key webhook fields for debugging
-    console.log(`🔍 Webhook payment details for ${webhookData.tx_ref}:`, {
+    console.log(`Webhook payment details for ${webhookData.tx_ref}:`, {
       status: webhookData.status,
       amount: webhookData.amount,
       charge: webhookData.charge,
@@ -213,7 +213,7 @@ exports.webhook = async (req, res) => {
     // Webhook status is directly accessible (not nested)
     const webhookStatus = webhookData.status;
     
-    console.log(`🔍 Webhook vs Verification comparison for ${webhookData.tx_ref}:`, {
+    console.log(`Webhook vs Verification comparison for ${webhookData.tx_ref}:`, {
       webhookStatus: webhookStatus,
       verificationStatus: txData.status,
       webhookAmount: webhookData.amount,
@@ -225,7 +225,7 @@ exports.webhook = async (req, res) => {
     // Verify webhook data matches verification response
     if (txData.status !== webhookStatus) {
       console.error(
-        `⚠️ Danger: transaction with id: ${webhookData.tx_ref} not verified, webhook may be compromised`,
+        `Danger: transaction with id: ${webhookData.tx_ref} not verified, webhook may be compromised`,
         `Webhook status: ${webhookStatus}, Verification status: ${txData.status}`
       );
       return sendErrorResponse(
@@ -239,7 +239,7 @@ exports.webhook = async (req, res) => {
     // Additional validation: compare amounts (webhook vs verification)
     if (Math.abs(txData.amount - webhookData.amount) > 1) { // Allow 1 unit difference for rounding
       console.error(
-        `⚠️ Amount mismatch for ${webhookData.tx_ref}:`,
+        `Amount mismatch for ${webhookData.tx_ref}:`,
         `Webhook: ${webhookData.amount}, Verification: ${txData.amount}`
       );
       return sendErrorResponse(
@@ -250,7 +250,7 @@ exports.webhook = async (req, res) => {
       );
     }
 
-    console.log(`✅ Webhook verification successful for ${webhookData.tx_ref} - Status: ${txData.status}`);
+    console.log(`Webhook verification successful for ${webhookData.tx_ref} - Status: ${txData.status}`);
     return sendSuccessResponse(res, "WebHook processed successfully");
 
   } catch (error) {

@@ -6,7 +6,7 @@ function generatePaymentEmail(name, status, txRef, amount, shopName, products = 
   };
 
   const statusMessages = {
-    success: "Your payment was successful! 🎉",
+    success: "Your payment was successful!",
     failed: "Unfortunately, your payment failed. Please try again.",
     pending: "Your payment is still pending. We’ll notify you once it’s confirmed.",
   };

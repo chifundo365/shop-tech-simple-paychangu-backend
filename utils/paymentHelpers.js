@@ -91,15 +91,15 @@ async function updatePaymentRecord(txRef, updateData, verifiedBy = null) {
  */
 async function sendPaymentStatusEmail(payment, status) {
   try {
-    console.log(`🔄 Attempting to send email for payment ${payment.tx_ref} with status: ${status}`);
+    console.log(`Attempting to send email for payment ${payment.tx_ref} with status: ${status}`);
     
     // Check if email was already sent for this status
     if (payment.emailSent && payment.emailSent[status]) {
-      console.log(`⚠️  Email already sent for status ${status} on payment ${payment.tx_ref} - Skipping duplicate`);
+      console.log(`Email already sent for status ${status} on payment ${payment.tx_ref} - Skipping duplicate`);
       return false;
     }
 
-    console.log(`📧 Preparing email for ${payment.email} (${payment.first_name} ${payment.last_name})`);
+    console.log(`Preparing email for ${payment.email} (${payment.first_name} ${payment.last_name})`);
     
     const fullName = `${payment.first_name} ${payment.last_name}`;
     const emailBody = generatePaymentEmail(
@@ -138,10 +138,10 @@ async function sendPaymentStatusEmail(payment, status) {
       }
     );
 
-    console.log(`✅ Email sent successfully for status '${status}' on payment ${payment.tx_ref} to ${payment.email}`);
+    console.log(`Email sent successfully for status '${status}' on payment ${payment.tx_ref} to ${payment.email}`);
     return true;
   } catch (error) {
-    console.error(`❌ Failed to send payment status email for ${payment.tx_ref}:`, error);
+    console.error(`Failed to send payment status email for ${payment.tx_ref}:`, error);
     return false;
   }
 }
@@ -166,7 +166,7 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
     const txData = verification.data;
     const oldStatus = existingPayment.status;
 
-    console.log(`🔍 Verification response for ${txRef}:`, {
+    console.log(`Verification response for ${txRef}:`, {
       apiStatus: verification.status,
       apiMessage: verification.message,
       paymentStatus: txData.status,
@@ -181,18 +181,18 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
 
     // Only update if status has changed
     if (txData.status !== existingPayment.status) {
-      console.log(`🔄 Payment status changed from '${existingPayment.status}' to '${txData.status}' for tx_ref: ${txRef}`);
+      console.log(`Payment status changed from '${existingPayment.status}' to '${txData.status}' for tx_ref: ${txRef}`);
       
       const updatedPayment = await updatePaymentRecord(txRef, txData, verifiedBy);
       
       // Send email notification for status change (if enabled)
         if (shouldSendEmail && (txData.status === 'success' || txData.status === 'failed')) {
-          console.log(`📧 Triggering email notification for payment ${txRef} - Status: ${txData.status}`);
+          console.log(`Triggering email notification for payment ${txRef} - Status: ${txData.status}`);
         await sendPaymentStatusEmail(updatedPayment, txData.status);
       } else if (shouldSendEmail) {
-        console.log(`📋 Email not triggered for payment ${txRef} - Status '${txData.status}' doesn't require notification`);
+        console.log(`Email not triggered for payment ${txRef} - Status '${txData.status}' doesn't require notification`);
       } else {
-        console.log(`📋 Email sending disabled for payment ${txRef} verification`);
+        console.log(`Email sending disabled for payment ${txRef} verification`);
       }
       
       return { 
@@ -205,7 +205,7 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
       };
     }
 
-    console.log(`📋 Payment status unchanged for tx_ref: ${txRef} (Status: ${txData.status})`);
+    console.log(`Payment status unchanged for tx_ref: ${txRef} (Status: ${txData.status})`);
     return { 
       success: true, 
       payment: existingPayment, 
@@ -215,7 +215,7 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
       newStatus: txData.status
     };
   } catch (error) {
-    console.log(`⚠️ Verification error for payment ${txRef}:`, error.response?.data || error.message);
+    console.log(`Verification error for payment ${txRef}:`, error.response?.data || error.message);
     
     // Handle verification errors
     if (error?.response?.status && existingPayment) {
@@ -227,7 +227,7 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
         tx_ref: errorResponseData.tx_ref || existingPayment.tx_ref
       };
       
-      console.log(`🔍 Error data structure for ${txRef}:`, {
+      console.log(`Error data structure for ${txRef}:`, {
         httpStatus: error.response.status,
         apiMessage: error.response.data?.message,
         paymentStatus: errorResponseData.status,
@@ -246,10 +246,10 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
       
       // Send email for failed payment (if enabled and status changed)
       if (shouldSendEmail && updatedPayment.status === 'failed' && existingPayment.status !== 'failed') {
-        console.log(`📧 Triggering failure email notification for payment ${txRef} due to verification error`);
+        console.log(`Triggering failure email notification for payment ${txRef} due to verification error`);
         await sendPaymentStatusEmail(updatedPayment, 'failed');
       } else if (shouldSendEmail && updatedPayment.status === 'failed') {
-        console.log(`📋 Payment ${txRef} already marked as failed - No email needed`);
+        console.log(`Payment ${txRef} already marked as failed - No email needed`);
       }
       
       return {
