@@ -217,6 +217,19 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
   } catch (error) {
     console.log(`Verification error for payment ${txRef}:`, error.response?.data || error.message);
     
+    // Log specific details for 400 status responses
+    if (error?.response?.status === 400) {
+      console.log(`400 Status Response for ${txRef}:`, {
+        statusCode: error.response.status,
+        statusText: error.response.statusText,
+        responseHeaders: error.response.headers,
+        responseData: error.response.data,
+        requestUrl: error.config?.url,
+        requestMethod: error.config?.method,
+        requestHeaders: error.config?.headers
+      });
+    }
+    
     // Handle verification errors
     if (error?.response?.status && existingPayment) {
       // Access error data structure: error.response.data (payment data is directly in data)
