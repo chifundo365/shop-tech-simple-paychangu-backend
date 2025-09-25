@@ -23,7 +23,7 @@ async function verifyPayment(txRef) {
       error.response?.data || error.message
     );
     
-    // If PayChangu returns 400 but with valid payment data, treat it as a successful response
+    // PayChangu sometimes returns HTTP 400 with valid payment data - handle this case
     if (error?.response?.status === 400) {
       const paymentData = error.response.data?.data;
       if (paymentData && paymentData.status && paymentData.tx_ref) {

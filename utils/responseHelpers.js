@@ -1,14 +1,3 @@
-/**
- * Standard API response utilities
- */
-
-/**
- * Sends success response
- * @param {Object} res - Express response object
- * @param {string} message - Success message
- * @param {*} data - Response data
- * @param {number} statusCode - HTTP status code (default: 200)
- */
 function sendSuccessResponse(res, message, data = null, statusCode = 200) {
   return res.status(statusCode).json({
     success: true,
@@ -42,7 +31,6 @@ function sendErrorResponse(res, message, data = null, statusCode = 400) {
 function handleErrorResponse(res, error, defaultMessage = 'An error occurred', data = null) {
   console.error('Error:', error);
 
-  // If it's an HTTP error with status
   if (error?.response?.status) {
     const errorData = error.response.data?.data || error.response.data || {};
     return sendErrorResponse(
@@ -53,17 +41,13 @@ function handleErrorResponse(res, error, defaultMessage = 'An error occurred', d
     );
   }
 
-  // For validation errors
   if (error.name === 'ValidationError') {
     return sendErrorResponse(res, error.message, data, 400);
   }
 
-  // For other known errors
   if (error.message) {
     return sendErrorResponse(res, error.message, data, 500);
   }
-
-  // Fallback for unknown errors
   return sendErrorResponse(res, defaultMessage, data, 500);
 }
 

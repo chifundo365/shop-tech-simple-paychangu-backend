@@ -6,12 +6,6 @@ const { generatePaymentEmail } = require('./emailTemplates');
 
 const WEBHOOK_SECRET_KEY = process.env.PAYCHANGU_WEBHOOK_SECRET_KEY;
 
-/**
- * Validates webhook signature
- * @param {string} signature - The signature from webhook headers
- * @param {string} payload - The request payload
- * @returns {boolean} - Returns true if signature is valid
- */
 function validateWebhookSignature(signature, payload) {
   if (!signature) {
     return false;
@@ -25,13 +19,6 @@ function validateWebhookSignature(signature, payload) {
   return hash === signature;
 }
 
-/**
- * Updates payment record in database
- * @param {string} txRef - Transaction reference
- * @param {Object} updateData - PayChangu response data
- * @param {string} verifiedBy - Source of verification
- * @returns {Promise<Object>} - Updated payment record
- */
 async function updatePaymentRecord(txRef, updateData, verifiedBy = null) {
   const updateFields = {
     status: updateData.status,
@@ -48,13 +35,11 @@ async function updatePaymentRecord(txRef, updateData, verifiedBy = null) {
     }
   };
 
-  // Add verification info if payment is successful
   if (updateData.status === 'success' && verifiedBy) {
     updateFields.verifiedBy = verifiedBy;
     updateFields.verifiedAt = new Date();
   }
 
-  // Add additional PayChangu fields if available (handle both verification and webhook fields)
   if (updateData.charges || updateData.charge) {
     updateFields['metadata.charges'] = updateData.charges || updateData.charge;
   }
@@ -64,8 +49,6 @@ async function updatePaymentRecord(txRef, updateData, verifiedBy = null) {
   if (updateData.number_of_attempts) {
     updateFields['metadata.number_of_attempts'] = updateData.number_of_attempts;
   }
-  
-  // Webhook-specific fields
   if (updateData.amount_split) {
     updateFields['metadata.amount_split'] = updateData.amount_split;
   }
@@ -83,17 +66,10 @@ async function updatePaymentRecord(txRef, updateData, verifiedBy = null) {
   );
 }
 
-/**
- * Sends payment status email to customer (only if not already sent)
- * @param {Object} payment - Payment record
- * @param {string} status - Payment status
- * @returns {Promise<boolean>} - Returns true if email was sent, false if already sent
- */
 async function sendPaymentStatusEmail(payment, status) {
   try {
     console.log(`Attempting to send email for payment ${payment.tx_ref} with status: ${status}`);
     
-    // Check if email was already sent for this status
     if (payment.emailSent && payment.emailSent[status]) {
       console.log(`Email already sent for status ${status} on payment ${payment.tx_ref} - Skipping duplicate`);
       return false;
@@ -129,7 +105,6 @@ async function sendPaymentStatusEmail(payment, status) {
 
     console.log(`Email delivery initiated successfully for ${payment.email}`);
 
-    // Update email tracking
     await Payment.findOneAndUpdate(
       { tx_ref: payment.tx_ref },
       {
@@ -146,14 +121,6 @@ async function sendPaymentStatusEmail(payment, status) {
   }
 }
 
-/**
- * Verifies payment and updates status
- * @param {string} txRef - Transaction reference
- * @param {Object} existingPayment - Existing payment record
- * @param {string} verifiedBy - Source of verification
- * @param {boolean} sendEmail - Whether to send email notification (default: true)
- * @returns {Promise<Object>} - Updated payment with verification results
- */
 async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, shouldSendEmail = true) {
   try {
     const verification = await verifyPayment(txRef);
@@ -162,7 +129,6 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
       throw new Error('Verification failed - no data returned');
     }
 
-    // The actual payment data is in verification.data
     const txData = verification.data;
     const oldStatus = existingPayment.status;
 
@@ -179,14 +145,12 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
       customerEmail: txData.customer?.email
     });
 
-    // Only update if status has changed
     if (txData.status !== existingPayment.status) {
       console.log(`Payment status changed from '${existingPayment.status}' to '${txData.status}' for tx_ref: ${txRef}`);
       
       const updatedPayment = await updatePaymentRecord(txRef, txData, verifiedBy);
       
-      // Send email notification for status change (if enabled)
-        if (shouldSendEmail && (txData.status === 'success' || txData.status === 'failed')) {
+      if (shouldSendEmail && (txData.status === 'success' || txData.status === 'failed')) {
           console.log(`Triggering email notification for payment ${txRef} - Status: ${txData.status}`);
         await sendPaymentStatusEmail(updatedPayment, txData.status);
       } else if (shouldSendEmail) {
@@ -218,12 +182,9 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
     console.log(`VERIFICATION ERROR for payment ${txRef}:`, error.response?.data || error.message);
 
     
-    // Handle verification errors
     if (error?.response?.status && existingPayment) {
       const errorResponseData = error.response.data || {};
       const paymentData = errorResponseData.data || {};
-      
-      // Handle actual errors
       const errorData = {
         status: paymentData.status || errorResponseData.status || 'failed',
         amount: paymentData.amount || errorResponseData.amount || existingPayment.amount,
@@ -240,7 +201,6 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
         verifiedBy
       );
       
-      // Send email for failed payment (if enabled and status changed)
       if (shouldSendEmail && updatedPayment.status === 'failed' && existingPayment.status !== 'failed') {
         console.log(`Triggering failure email notification for payment ${txRef} due to verification error`);
         await sendPaymentStatusEmail(updatedPayment, 'failed');
@@ -262,11 +222,6 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
   }
 }
 
-/**
- * Validates required fields for payment initiation
- * @param {Object} data - Request data
- * @returns {Object} - Validation result
- */
 function validatePaymentInitiation(data) {
   const requiredFields = ['first_name', 'last_name', 'email', 'phone', 'amount', 'currency'];
   const missingFields = requiredFields.filter(field => !data[field]);
@@ -278,7 +233,6 @@ function validatePaymentInitiation(data) {
     };
   }
 
-  // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(data.email)) {
     return {
@@ -286,8 +240,6 @@ function validatePaymentInitiation(data) {
       message: 'Invalid email format'
     };
   }
-
-  // Validate amount
   if (isNaN(data.amount) || data.amount <= 0) {
     return {
       isValid: false,
@@ -298,11 +250,6 @@ function validatePaymentInitiation(data) {
   return { isValid: true };
 }
 
-/**
- * Validates required fields for payment report
- * @param {Object} data - Request data
- * @returns {Object} - Validation result
- */
 function validatePaymentReport(data) {
   const requiredFields = ['tx_ref', 'email', 'message', 'status'];
   const missingFields = requiredFields.filter(field => !data[field]);

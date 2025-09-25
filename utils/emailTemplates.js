@@ -45,7 +45,6 @@ function generatePaymentEmail(name, status, txRef, amount, shopName, products = 
     pending: "Your payment is still pending. We’ll notify you once it’s confirmed.",
   };
 
-  // Generate product rows with modern styling
   const productRows = products.map(
     (p) => `
       <tr style="border-bottom: 1px solid #E5E7EB;">

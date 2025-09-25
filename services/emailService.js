@@ -1,7 +1,7 @@
 const brevo = require("@getbrevo/brevo");
 
 
-const API_KEY = process.env.BREVO_API_KEY?.trim(); // Remove any whitespace/newlines
+const API_KEY = process.env.BREVO_API_KEY?.trim();
 const SENDER_EMAIL = process.env.EMAIL_SENDER_EMAIL?.trim();
 const SENDER_NAME = process.env.EMAIL_SENDER_NAME?.trim();
 
@@ -15,7 +15,6 @@ const SENDER_NAME = process.env.EMAIL_SENDER_NAME?.trim();
  */
 async function sendEmail(to, name, subject, text, html) {
   try {
-    // Validate API key
     if (!API_KEY || API_KEY.includes('\r') || API_KEY.includes('\n') || API_KEY.includes('+')) {
       console.error('Invalid API key format detected:', {
         hasKey: !!API_KEY,

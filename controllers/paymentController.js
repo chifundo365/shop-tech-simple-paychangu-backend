@@ -29,7 +29,6 @@ exports.initiatePayment = async (req, res) => {
   try {
     const { first_name, last_name, email, phone, amount, metadata, currency } = req.body;
 
-    // Validate required fields
     const validation = validatePaymentInitiation(req.body);
     if (!validation.isValid) {
       return sendErrorResponse(res, validation.message, null, 400);
@@ -38,7 +37,6 @@ exports.initiatePayment = async (req, res) => {
     const reference = uuidv4();
     console.log('Initiating payment with reference:', reference);
 
-    // Make API request to payment gateway
     const response = await axios.post(
       `${API_BASE}/payment`,
       { 
@@ -65,11 +63,11 @@ exports.initiatePayment = async (req, res) => {
       }
     );
 
-    // Extract transaction reference and checkout URL from response
     const txRef = response.data.data?.data?.tx_ref;
     const checkoutUrl = response.data.data?.checkout_url;
 
-    // Create payment record in database
+    const expiredAt = new Date();
+    expiredAt.setMinutes(expiredAt.getMinutes() + 59);
     await Payment.create({
       first_name,
       last_name,
@@ -79,8 +77,12 @@ exports.initiatePayment = async (req, res) => {
       phone,
       tx_ref: txRef,
       checkout_url: checkoutUrl,
+      expired_at: expiredAt,
       metadata
     });
+
+
+
 
     console.log('Payment initiated successfully:', response.data);
     return sendSuccessResponse(res, 'Payment initiated', response.data);
@@ -111,24 +113,20 @@ exports.verifyPayment = async (req, res) => {
       return sendErrorResponse(res, "Payment record not found", null, 404);
     }
 
-    // If payment already marked failed, no need to proceed
     if (payment.status === "failed") {
       console.log("Payment failed:", payment.tx_ref);
       return sendErrorResponse(res, "Payment verification failed", payment);
     }
 
-    // If payment already marked success, skip external verification
     if (payment.status === "success") {
       console.log("Payment already verified");
       return sendSuccessResponse(res, "Payment verified", payment);
     }
-
-    // Verify payment and update status
     const verificationResult = await verifyAndUpdatePayment(
       tx_ref, 
       payment, 
       'verify-payment-endpoint',
-      true // Enable email sending
+      true
     );
 
     if (!verificationResult.success) {
@@ -149,13 +147,10 @@ exports.verifyPayment = async (req, res) => {
       responseData = {
         ...updatedPayment.toObject()
       };
-      // Only include checkout_url if it exists
       if (updatedPayment.checkout_url) {
         responseData.checkout_url = updatedPayment.checkout_url;
       }
     }
-
-    // Return success response for all valid payment statuses
     return sendSuccessResponse(res, txData.status, responseData);
 
   } catch (error) {
@@ -185,7 +180,6 @@ exports.webhook = async (req, res) => {
     const webhookData = JSON.parse(payload);
     console.log("Successfully received webhook data in JSON:", webhookData);
 
-    // Log key webhook fields for debugging
     console.log(`Webhook payment details for ${webhookData.tx_ref}:`, {
       status: webhookData.status,
       amount: webhookData.amount,
@@ -195,20 +189,17 @@ exports.webhook = async (req, res) => {
       authChannel: webhookData.authorization?.channel,
       merchantAmount: webhookData.amount_split?.amount_received_by_merchant
     });
-
-    // Find existing payment record
     const existingPayment = await Payment.findOne({ tx_ref: webhookData.tx_ref });
     if (!existingPayment) {
       console.error(`Payment record not found for tx_ref: ${webhookData.tx_ref}`);
       return sendErrorResponse(res, "Payment record not found", null, 404);
     }
 
-    // Verify transaction with paychangu verification endpoint
     const verificationResult = await verifyAndUpdatePayment(
       webhookData.tx_ref,
       existingPayment,
       'webhook',
-      true // Enable email sending
+      true
     );
 
     if (!verificationResult.success) {
@@ -222,7 +213,6 @@ exports.webhook = async (req, res) => {
 
     const { payment: updatedPayment, data: txData } = verificationResult;
 
-    // Webhook status is directly accessible (not nested)
     const webhookStatus = webhookData.status;
     
     console.log(`Webhook vs Verification comparison for ${webhookData.tx_ref}:`, {
@@ -234,7 +224,6 @@ exports.webhook = async (req, res) => {
       verificationCharges: txData.charges
     });
 
-    // Verify webhook data matches verification response
     if (txData.status !== webhookStatus) {
       console.error(
         `Danger: transaction with id: ${webhookData.tx_ref} not verified, webhook may be compromised`,
@@ -248,8 +237,7 @@ exports.webhook = async (req, res) => {
       );
     }
 
-    // Additional validation: compare amounts (webhook vs verification)
-    if (Math.abs(txData.amount - webhookData.amount) > 1) { // Allow 1 unit difference for rounding
+    if (Math.abs(txData.amount - webhookData.amount) > 1) {
       console.error(
         `Amount mismatch for ${webhookData.tx_ref}:`,
         `Webhook: ${webhookData.amount}, Verification: ${txData.amount}`
@@ -283,13 +271,10 @@ exports.paymentReport = async (req, res) => {
     const data = req.body;
     console.log('Payment report data:', data);
 
-    // Validate required fields
     const validation = validatePaymentReport(data);
     if (!validation.isValid) {
       return sendErrorResponse(res, validation.message, null, 400);
     }
-
-    // Create payment report
     const report = await PaymentReport.create({
       tx_ref: data.tx_ref,
       email: data.email,

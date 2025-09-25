@@ -25,6 +25,7 @@ const paymentSchema = new mongoose.Schema(
     },
     tx_ref: String,
     checkout_url: { type: String, default: null },
+    expired_at: { type: Date, default: null },
     retries: { type: Number, default: 0 },
     verifiedAt: Date,
     verifiedBy: {

@@ -8,22 +8,58 @@ const { generatePaymentEmail } = require("../utils/emailTemplates");
 const API_BASE = process.env.PAYCHANGU_API_BASE;
 const SECRET_KEY = process.env.PAYCHANGU_SECRET_KEY;
 
-/**
- * Background job - checking and updating status of pending transaction
- */
-const verifyTransactionJob = cron.schedule('0 * * * *', async () => {
+const verifyTransactionJob = cron.schedule('* * * * *', async () => {
   console.log('Background job started checking pending transactions');
 
   try {
+    const currentTime = new Date();
+    const expiredPayments = await Payment.find({
+      status: { $nin: ['success', 'failed'] },
+      expired_at: { $lte: currentTime }
+    });
+
+    console.log(`Found ${expiredPayments.length} expired payments to mark as failed`);
+
+    for (const expiredPayment of expiredPayments) {
+      try {
+        expiredPayment.status = 'failed';
+        expiredPayment.verifiedBy = 'background-job';
+        expiredPayment.verifiedAt = new Date();
+
+        await sendEmail(
+          expiredPayment.email,
+          `${expiredPayment.first_name} ${expiredPayment.last_name}`,
+          'Your ShopTech Order: Payment Expired',
+          null,
+          generatePaymentEmail(
+            `${expiredPayment.first_name} ${expiredPayment.last_name}`,
+            'failed',
+            expiredPayment.tx_ref,
+            expiredPayment.amount,
+            expiredPayment.metadata.shopName,
+            expiredPayment.metadata.products
+          )
+        );
+
+        await expiredPayment.save();
+        console.log(`Expired payment marked as failed: ${expiredPayment.tx_ref}`);
+      } catch (error) {
+        console.error(`Error processing expired payment ${expiredPayment.tx_ref}:`, error.message);
+      }
+    }
+
     const pendingPayments = await Payment.find({
-      status: { $nin: ['success', 'failed'] }
+      status: { $nin: ['success', 'failed'] },
+      $or: [
+        { expired_at: { $gt: currentTime } },
+        { expired_at: null }
+      ]
     });
 
     for (const payment of pendingPayments) {
       try {
         const verification = await verifyPayment(payment.tx_ref);
 
-        // update payment status on verified
         if (verification?.status === 'success') {
           payment.status = verification.data.status;
           payment.amount = verification.data.amount;
@@ -31,7 +67,6 @@ const verifyTransactionJob = cron.schedule('0 * * * *', async () => {
           payment.verifiedBy = 'background-job';
           payment.verifiedAt = new Date();
 
-          // Send html based email on payment success with full info.
           await sendEmail(
             payment.email,
             `${payment.first_name} ${payment.last_name}`,
@@ -56,7 +91,6 @@ const verifyTransactionJob = cron.schedule('0 * * * *', async () => {
           payment.verifiedBy = 'background-job';
           payment.verifiedAt = new Date();
 
-          // Send email notification for failed payment
           await sendEmail(
             payment.email,
             `${payment.first_name} ${payment.last_name}`,
