@@ -86,6 +86,7 @@ async function sendPaymentStatusEmail(payment, status) {
       payment.metadata?.shopName,
       payment.metadata?.products,
       {
+        currency: payment.currency,
         charges: payment.metadata?.charges,
         reference: payment.metadata?.reference,
         authorization: payment.authorization,

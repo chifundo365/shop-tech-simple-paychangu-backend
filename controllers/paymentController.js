@@ -4,7 +4,6 @@ const Payment = require('../models/Payment');
 const PaymentReport = require('../models/PaymentReport');
 const {
   validateWebhookSignature,
-  sendPaymentStatusEmail,
   verifyAndUpdatePayment,
   validatePaymentInitiation,
   validatePaymentReport

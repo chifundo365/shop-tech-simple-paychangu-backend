@@ -37,7 +37,10 @@ const verifyTransactionJob = cron.schedule('* * * * *', async () => {
             expiredPayment.tx_ref,
             expiredPayment.amount,
             expiredPayment.metadata.shopName,
-            expiredPayment.metadata.products
+            expiredPayment.metadata.products,
+            {
+              currency: expiredPayment.currency
+            }
           )
         );
 
@@ -78,7 +81,10 @@ const verifyTransactionJob = cron.schedule('* * * * *', async () => {
               verification.data.tx_ref,
               verification.data.amount,
               payment.metadata.shopName,
-              payment.metadata.products
+              payment.metadata.products,
+              {
+                currency: payment.currency
+              }
             )
           );
         }
@@ -102,7 +108,10 @@ const verifyTransactionJob = cron.schedule('* * * * *', async () => {
               payment.tx_ref,
               payment.amount,
               payment.metadata.shopName,
-              payment.metadata.products
+              payment.metadata.products,
+              {
+                currency: payment.currency
+              }
             )
           );
           
