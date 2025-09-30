@@ -1,4 +1,5 @@
 function generatePaymentEmail(name, status, txRef, amount, shopName, products = [], paymentData = {}) {
+  console.log("Payment Data >>>>>>>>>>>>>>>>>>>>>>>>", paymentData);
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -56,8 +57,8 @@ function generatePaymentEmail(name, status, txRef, amount, shopName, products = 
           ${p.quantity}
         </td>
         <td style="padding: 16px 0; text-align: right; vertical-align: top;">
-          <div style="font-weight: 600; color: #111827;">${paymentData.currency || 'MWK'} ${(p.price * p.quantity).toLocaleString()}</div>
-          <div style="font-size: 14px; color: #6B7280;">${paymentData.currency || 'MWK'} ${p.price.toLocaleString()} each</div>
+          <div style="font-weight: 600; color: #111827;">${paymentData.currency} ${(p.price * p.quantity).toLocaleString()}</div>
+          <div style="font-size: 14px; color: #6B7280;">${paymentData.currency} ${p.price.toLocaleString()} each</div>
         </td>
       </tr>
     `
@@ -121,12 +122,12 @@ function generatePaymentEmail(name, status, txRef, amount, shopName, products = 
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px;">
                 <tr>
                   <td style="padding: 8px 0; color: #6B7280; font-size: 14px; font-weight: 500;">Amount</td>
-                  <td style="padding: 8px 0; text-align: right; color: #111827; font-size: 18px; font-weight: 700;">${paymentData.currency || 'MWK'} ${amount.toLocaleString()}</td>
+                  <td style="padding: 8px 0; text-align: right; color: #111827; font-size: 18px; font-weight: 700;">${paymentData.currency} ${amount.toLocaleString()}</td>
                 </tr>
                 ${paymentData.charges ? `
                 <tr>
                   <td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Transaction Fee</td>
-                  <td style="padding: 8px 0; text-align: right; color: #6B7280; font-size: 14px;">${paymentData.currency || 'MWK'} ${paymentData.charges.toLocaleString()}</td>
+                  <td style="padding: 8px 0; text-align: right; color: #6B7280; font-size: 14px;">${paymentData.currency} ${paymentData.charges.toLocaleString()}</td>
                 </tr>
                 ` : ''}
                 <tr>
@@ -175,17 +176,17 @@ function generatePaymentEmail(name, status, txRef, amount, shopName, products = 
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="color: #6B7280; font-size: 14px;">Subtotal</td>
-                      <td style="text-align: right; color: #374151; font-size: 14px; font-weight: 500;">${paymentData.currency || 'MWK'} ${totalAmount.toLocaleString()}</td>
+                      <td style="text-align: right; color: #374151; font-size: 14px; font-weight: 500;">${paymentData.currency} ${totalAmount.toLocaleString()}</td>
                     </tr>
                     ${paymentData.charges ? `
                     <tr>
                       <td style="color: #6B7280; font-size: 14px; padding-top: 8px;">Fees</td>
-                      <td style="text-align: right; color: #374151; font-size: 14px; padding-top: 8px;">${paymentData.currency || 'MWK'} ${paymentData.charges.toLocaleString()}</td>
+                      <td style="text-align: right; color: #374151; font-size: 14px; padding-top: 8px;">${paymentData.currency} ${paymentData.charges.toLocaleString()}</td>
                     </tr>
                     ` : ''}
                     <tr style="border-top: 1px solid #E5E7EB;">
                       <td style="color: #111827; font-size: 16px; font-weight: 700; padding-top: 12px;">Total</td>
-                      <td style="text-align: right; color: #111827; font-size: 16px; font-weight: 700; padding-top: 12px;">${paymentData.currency || 'MWK'} ${amount.toLocaleString()}</td>
+                      <td style="text-align: right; color: #111827; font-size: 16px; font-weight: 700; padding-top: 12px;">${paymentData.currency} ${amount.toLocaleString()}</td>
                     </tr>
                   </table>
                 </div>
