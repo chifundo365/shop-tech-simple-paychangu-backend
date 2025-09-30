@@ -133,19 +133,7 @@ async function verifyAndUpdatePayment(txRef, existingPayment, verifiedBy, should
     const txData = verification.data;
     const oldStatus = existingPayment.status;
 
-    console.log(`Verification response for ${txRef}:`, {
-      apiStatus: verification.status,
-      apiMessage: verification.message,
-      paymentStatus: txData.status,
-      paymentAmount: txData.amount,
-      currency: txData.currency,
-      charges: txData.charges,
-      reference: txData.reference,
-      attempts: txData.number_of_attempts,
-      authChannel: txData.authorization?.channel,
-      customerEmail: txData.customer?.email
-    });
-
+    
     if (txData.status !== existingPayment.status) {
       console.log(`Payment status changed from '${existingPayment.status}' to '${txData.status}' for tx_ref: ${txRef}`);
       
